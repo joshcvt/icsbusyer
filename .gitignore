@@ -1,0 +1,25 @@
+# compiled python
+*.pyc
+
+# config file that might hold secrets
+*.ini
+!sample_config.ini
+
+# running status of instances and test files, don't keep them
+*json
+*log
+*xml
+
+# working samples
+working
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
