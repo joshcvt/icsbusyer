@@ -3,7 +3,8 @@
 *.pyo
 
 # running status of instances and test files, don't keep them
-*json
+config.json
+state.json
 *log
 *xml
 *ics

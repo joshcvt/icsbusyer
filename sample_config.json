@@ -1,0 +1,10 @@
+{
+    "calendar": "https://outlook.office365.com/owa/calendar/VERY_LONG_STRING_HERE/calendar.ics",
+    "localCalendar": "msbusycal.20221105.ics",
+    "workingCalendar": "workingCalendar.ics",
+    "useLocal": false,
+    "stateFile": "state.json",
+    "calendarRefreshIntervalSeconds": 3600,
+    "apiEndpoint": "http://whatever-your-machine-is-called-in-bonjour.local:5000/api/",
+    "excludeEventUIDs": ["VALUE OF CALENDAR UID FIELD OF AN EVENT YOU'D LIKE TO EXCLUDE"]
+}
