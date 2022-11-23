@@ -12,7 +12,7 @@ DEBUG_LEVEL_DEBUG = 1300
 DEBUG_LEVEL_INFO = 1200
 DEBUG_LEVEL_NO = 1000
 
-DEBUG_LEVEL = DEBUG_LEVEL_DEBUG
+DEBUG_LEVEL = DEBUG_LEVEL_NO
 
 DEFAULT_CONFIG_FILE = 'config.json'
 DEFAULT_STATE_FILE = 'state.json'
@@ -24,9 +24,6 @@ STATE_STARTED = "STATE_STARTED"
 STATE_COMPLETED = "STATE_COMPLETED"
 
 NOW = datetime.now(timezone('US/Eastern')) # gonna want this a lot; will want to config-ize tz eventually
-
-#print("ADDING 12 HOURS BECAUSE TESTING REASONS")
-#NOW += timedelta(hours=12)
 
 TIME_SINCE_DAYSTART = NOW - NOW.replace(hour=8, minute=30) 
 TIME_SINCE_DAYEND = NOW - NOW.replace(hour=18, minute=0)
@@ -141,7 +138,10 @@ def main():
 
     if TIME_SINCE_DAYEND > TIMEDELTA_ZERO:
         debug("it's after day end")
-        if TIME_SINCE_DAYEND < timedelta(seconds=DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS):
+        debug("default status refresh interval seconds = " + str(DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS))
+        debug(str(TIME_SINCE_DAYEND))
+        if TIME_SINCE_DAYEND < timedelta(seconds=(DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS+60)):
+            # give it that extra 60 seconds because you're probably taking time to load the calendar...
             light.setOff()
         quit() # we also outta here
 
