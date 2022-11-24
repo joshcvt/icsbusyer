@@ -22,6 +22,7 @@ DEFAULT_LOOKFORWARD_DAYS = 3
 
 STATE_STARTED = "STATE_STARTED"
 STATE_COMPLETED = "STATE_COMPLETED"
+STATE_DAYSTARTED = "STATE_DAYSTARTED"
 
 NOW = datetime.now(timezone('US/Eastern')) # gonna want this a lot; will want to config-ize tz eventually
 
@@ -129,9 +130,13 @@ def loadCalendarAndEvents(config,start_date=(NOW.year,NOW.month,NOW.day),end_dat
 def initState():
     return { STATE_STARTED: [], STATE_COMPLETED: [] }
 
+def cleanState(state):
+    ks = state.keys()
+    return (len(ks) == 2 and STATE_COMPLETED in ks and STATE_STARTED in ks and ks[STATE_COMPLETED] == [] and ks[STATE_STARTED] == [])
+
 def main():
     config, state = loadConfigAndState()
-    if len(state.keys()) < 2:
+    if len(state.keys()) < 2:   # something's wrong, just clean it
         state = initState()
     debug(state.keys())
     light = BusyLight(config["apiEndpoint"])
@@ -147,7 +152,7 @@ def main():
 
     if TIME_SINCE_DAYSTART < TIMEDELTA_ZERO:
         print ("it's before day start")
-        if len(state) > 0:
+        if not cleanState(state):
             state = initState()
             writeState()
         quit() # we outta here
@@ -155,8 +160,9 @@ def main():
         debug("within workday, let's go")
         calendar, es = loadCalendarAndEvents(config)
         #if TIME_SINCE_DAYSTART < timedelta(seconds=DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS):
-        if light.getStatus() == BusyLight.LIGHT_OFF:
+        if light.getStatus() == BusyLight.LIGHT_OFF and STATE_DAYSTARTED not in state.keys():
             light.setGreen()
+            state[STATE_DAYSTARTED] = 1
         else:
             debug("light's not off")
     
