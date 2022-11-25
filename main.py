@@ -145,6 +145,10 @@ def main():
     if (STATE_DAYDATE not in state) or state[STATE_DAYDATE] != NOW.day:
         # either this is the first run of the day or something's broken. either way, clean it out
         state = initState()
+    
+    if state[STATE_DAYDATE] == NOW.day and STATE_DAYSTARTED in state and light.getStatus() == BusyLight.LIGHT_OFF:
+        # we already turned it off once today. don't restart unless manually turned on.
+        quit()
 
     if TIME_SINCE_DAYEND > TIMEDELTA_ZERO:
         debug("it's after day end")
