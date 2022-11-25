@@ -23,6 +23,7 @@ DEFAULT_LOOKFORWARD_DAYS = 3
 STATE_STARTED = "STATE_STARTED"
 STATE_COMPLETED = "STATE_COMPLETED"
 STATE_DAYSTARTED = "STATE_DAYSTARTED"
+STATE_DAYDATE = "STATE_DAYDATE"
 
 NOW = datetime.now(timezone('US/Eastern')) # gonna want this a lot; will want to config-ize tz eventually
 
@@ -43,7 +44,7 @@ def eventsValidate(events,config=None):
 
 def validateEvent(ev,config=None):
     if ev['X-MICROSOFT-CDO-BUSYSTATUS'] == 'BUSY':
-        if config and "excludeEventUIDs" in config.keys() and ev['UID'] in config["excludeEventUIDs"]:
+        if config and ("excludeEventUIDs" in config) and (ev['UID'] in config["excludeEventUIDs"]):
             return False
         else:
             return True
@@ -128,11 +129,11 @@ def loadCalendarAndEvents(config,start_date=(NOW.year,NOW.month,NOW.day),end_dat
     return (calendar, sorted(events,key=lambda event: event["DTSTART"].dt))
 
 def initState():
-    return { STATE_STARTED: [], STATE_COMPLETED: [] }
+    return { STATE_STARTED: [], STATE_COMPLETED: [], STATE_DAYDATE: NOW.day }
 
 def cleanState(state):
     ks = state.keys()
-    return (len(ks) == 2 and STATE_COMPLETED in ks and STATE_STARTED in ks and ks[STATE_COMPLETED] == [] and ks[STATE_STARTED] == [])
+    return (STATE_COMPLETED in ks and STATE_STARTED in ks and ks[STATE_COMPLETED] == [] and ks[STATE_STARTED] == [])
 
 def main():
     config, state = loadConfigAndState()
@@ -140,6 +141,10 @@ def main():
         state = initState()
     debug(state.keys())
     light = BusyLight(config["apiEndpoint"])
+
+    if (STATE_DAYDATE not in state) or state[STATE_DAYDATE] != NOW.day:
+        # either this is the first run of the day or something's broken. either way, clean it out
+        state = initState()
 
     if TIME_SINCE_DAYEND > TIMEDELTA_ZERO:
         debug("it's after day end")
@@ -151,7 +156,7 @@ def main():
         quit() # we also outta here
 
     if TIME_SINCE_DAYSTART < TIMEDELTA_ZERO:
-        print ("it's before day start")
+        debug("it's before day start. ")
         if not cleanState(state):
             state = initState()
             writeState()
@@ -160,7 +165,7 @@ def main():
         debug("within workday, let's go")
         calendar, es = loadCalendarAndEvents(config)
         #if TIME_SINCE_DAYSTART < timedelta(seconds=DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS):
-        if light.getStatus() == BusyLight.LIGHT_OFF and STATE_DAYSTARTED not in state.keys():
+        if light.getStatus() == BusyLight.LIGHT_OFF and STATE_DAYSTARTED not in state:
             light.setGreen()
             state[STATE_DAYSTARTED] = 1
         else:
