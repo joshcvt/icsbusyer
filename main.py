@@ -133,7 +133,7 @@ def initState():
 
 def cleanState(state):
     ks = state.keys()
-    return (STATE_COMPLETED in ks and STATE_STARTED in ks and ks[STATE_COMPLETED] == [] and ks[STATE_STARTED] == [])
+    return (STATE_COMPLETED in ks and STATE_STARTED in ks and state[STATE_COMPLETED] == [] and state[STATE_STARTED] == [])
 
 def main():
     config, state = loadConfigAndState()
