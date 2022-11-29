@@ -115,8 +115,12 @@ def loadConfigAndState(configFile=DEFAULT_CONFIG_FILE):
     
     return config, state
 
-def loadCalendarAndEvents(config,start_date=(NOW.year,NOW.month,NOW.day),end_date=(NOW.year,NOW.month,NOW.day+DEFAULT_LOOKFORWARD_DAYS)):
+def loadCalendarAndEvents(config):
     
+    start_date = (NOW.year,NOW.month,NOW.day)
+    end_stamp = NOW + timedelta(days=DEFAULT_LOOKFORWARD_DAYS)
+    end_date = (end_stamp.year, end_stamp.month, end_stamp.day)
+
     # do caching later.
     if 'useLocal' in config and config['useLocal'] == True:
         with open(config['localCalendar'],'r') as f:
@@ -143,11 +147,13 @@ def main():
     light = BusyLight(config["apiEndpoint"])
 
     if (STATE_DAYDATE not in state) or state[STATE_DAYDATE] != NOW.day:
+        debug("New day, initing state")
         # either this is the first run of the day or something's broken. either way, clean it out
         state = initState()
     
     if state[STATE_DAYDATE] == NOW.day and STATE_DAYSTARTED in state and light.getStatus() == BusyLight.LIGHT_OFF:
         # we already turned it off once today. don't restart unless manually turned on.
+        debug("Manually turned off, exiting")
         quit()
 
     if TIME_SINCE_DAYEND > TIMEDELTA_ZERO:
