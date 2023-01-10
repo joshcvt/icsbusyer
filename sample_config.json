@@ -5,6 +5,6 @@
     "useLocal": false,
     "stateFile": "state.json",
     "calendarRefreshIntervalSeconds": 3600,
-    "apiEndpoint": "http://whatever-your-machine-is-called-in-bonjour.local:5000/api/",
+    "apiEndpoint": "http://localhost:5000/api/",
     "excludeEventUIDs": ["VALUE OF CALENDAR UID FIELD OF AN EVENT YOU'D LIKE TO EXCLUDE"]
 }
