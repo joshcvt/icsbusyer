@@ -38,7 +38,7 @@ def debug(str):
 def eventsValidate(events,config=None):
     valids = []
     for ev in events:
-        if validateEvent(ev):
+        if validateEvent(ev,config):
             valids.append(ev)
     return valids
 
@@ -182,7 +182,7 @@ def main():
             debug("light's not off")
     
     rawNowEvents = recurring_ical_events.of(calendar).at(NOW)
-    nowEvents = eventsValidate(rawNowEvents)
+    nowEvents = eventsValidate(rawNowEvents,config)
 
     if len(nowEvents) == 0:
         if light.getStatus() == BusyLight.LIGHT_RED:
