@@ -44,6 +44,7 @@ def eventsValidate(events,config=None):
 
 def validateEvent(ev,config=None):
     if ev['X-MICROSOFT-CDO-BUSYSTATUS'] == 'BUSY':
+        # return config.isEventUIDExcluded(ev['UID'])
         if config and ("excludeEventUIDs" in config) and (ev['UID'] in config["excludeEventUIDs"]):
             return False
         else:
@@ -83,12 +84,56 @@ class BusyLight():
         debug("turning off")
         urllib.request.urlopen(self.apiUrl+"off")
 
+class Config():
+    def __init__(self,configFile=DEFAULT_CONFIG_FILE) -> None:
+        dirtyConfig = False
+        self.jsonDict = {}
+        try:
+            with open(configFile) as f:
+                self.jsonDict = json.load(f)
+        except Exception as e:
+            # we're just leaving self.jsonDict empty here
+            pass
+
+        if 'stateFile' not in self.jsonDict:
+            self.jsonDict['stateFile'] = DEFAULT_STATE_FILE
+            dirtyConfig = True
+        if 'calendarRefreshIntervalSeconds' not in self.jsonDict:
+            self.jsonDict['calendarRefreshIntervalSeconds'] = DEFAULT_CALENDAR_REFRESH_INTERVAL_SECONDS
+            dirtyConfig = True
+        if dirtyConfig:
+            with open(configFile, 'w') as f:
+                json.dump(self.jsonDict, f)
+
+    def isEventUIDExcluded(self,eventUID):
+        if self.jsonDict and ("excludeEventUIDs" in self.jsonDict) and (eventUID in self.jsonDict["excludeEventUIDs"]):
+            return False
+        else:
+            return True
+    
+    def getStateFile(self):
+        return self.jsonDict['stateFile']
+    
+    def useLocalCalendar(self):
+        return (('useLocal' in self.jsonDict) and (self.jsonDict['useLocal'] == True))
+    
+    def getLocalCalendar(self):
+        return self.jsonDict['localCalendar']
+    
+    def getCalendarURL(self):
+        return self.jsonDict['calendar']
+
+    def getAPIEndpoint(self):
+        return self.jsonDict['apiEndpoint']
+
 def writeState(config,state):
+    # with open(config.getStateFile(), 'w') as f:
     with open(config['stateFile'], 'w') as f:
         json.dump(state, f)
 
 def loadConfigAndState(configFile=DEFAULT_CONFIG_FILE):
 
+    # config = Config(configFile)
     dirtyConfig = False
 
     try:
@@ -106,8 +151,10 @@ def loadConfigAndState(configFile=DEFAULT_CONFIG_FILE):
     if dirtyConfig:
         with open(configFile, 'w') as f:
             json.dump(config, f)
+    # end replace
 
     try:
+        #with open(config.getStateFile()) as f:
         with open(config['stateFile']) as f:
             state = json.load(f)
     except: # FileNotFoundError, but also if JSON parse fails
@@ -122,10 +169,13 @@ def loadCalendarAndEvents(config):
     end_date = (end_stamp.year, end_stamp.month, end_stamp.day)
 
     # do caching later.
+    # if config.useLocalCalendar():
     if 'useLocal' in config and config['useLocal'] == True:
+        #with open(config.getLocalCalendar(),'r') as f:
         with open(config['localCalendar'],'r') as f:
             ical_string = f.read()
     else:
+        #ical_string = urllib.request.urlopen(config.getCalendarURL()).read()
         ical_string = urllib.request.urlopen(config["calendar"]).read()
     calendar = icalendar.Calendar.from_ical(ical_string)
     events = recurring_ical_events.of(calendar).between(start_date, end_date)
@@ -150,6 +200,7 @@ def main():
     if len(state.keys()) < 2:   # something's wrong, just clean it
         state = initState()
     debug(state.keys())
+    #light = BusyLight(config.getAPIEndpoint())
     light = BusyLight(config["apiEndpoint"])
 
     if (STATE_DAYDATE not in state) or state[STATE_DAYDATE] != NOW.day:
