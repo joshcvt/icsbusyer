@@ -130,6 +130,12 @@ def loadCalendarAndEvents(config):
     calendar = icalendar.Calendar.from_ical(ical_string)
     events = recurring_ical_events.of(calendar).between(start_date, end_date)
     debug("calendar had " + str(len(events)) + " events")
+
+    for i in reversed(range(0,len(events))):
+        if type(events[i]["DTSTART"].dt).__name__ == 'date':
+            del events[i]
+            debug("deleted element %i for being a date not datetime" % i)
+
     return (calendar, sorted(events,key=lambda event: event["DTSTART"].dt))
 
 def initState():
