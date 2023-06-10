@@ -27,6 +27,9 @@ STATE_DAYDATE = "STATE_DAYDATE"
 
 NOW = datetime.now(timezone('US/Eastern')) # gonna want this a lot; will want to config-ize tz eventually
 
+print("SETTING TIME TO 48 HOURS AGO FOR TESTING")
+NOW -= timedelta(days=2)
+
 TIME_SINCE_DAYSTART = NOW - NOW.replace(hour=8, minute=30) 
 TIME_SINCE_DAYEND = NOW - NOW.replace(hour=18, minute=0)
 TIMEDELTA_ZERO = timedelta(seconds=0)
@@ -44,10 +47,7 @@ def eventsValidate(events,config=None):
 
 def validateEvent(ev,config=None):
     if ev['X-MICROSOFT-CDO-BUSYSTATUS'] == 'BUSY':
-        if config and ("excludeEventUIDs" in config) and (ev['UID'] in config["excludeEventUIDs"]):
-            return False
-        else:
-            return True
+        return config.isEventUIDExcluded(ev)
     else:
         debug("ev isn't valid!")
         return False
@@ -71,6 +71,18 @@ class BusyLight():
             return self.LIGHT_RED
         else:
             return self.LIGHT_OTHER
+        
+    def isOff(self):
+        return (self.getStatus() == BusyLight.LIGHT_OFF)
+    
+    def isGreen(self):
+        return (self.getStatus() == BusyLight.LIGHT_GREEN)
+    
+    def isRed(self):
+        return (self.getStatus() == BusyLight.LIGHT_RED)
+    
+    def isOther(self):
+        return(self.getStatus() == BusyLight.LIGHT_OTHER)
     
     def setGreen(self):
         urllib.request.urlopen(self.apiUrl+"available")
@@ -83,32 +95,58 @@ class BusyLight():
         debug("turning off")
         urllib.request.urlopen(self.apiUrl+"off")
 
+class Config():
+    def __init__(self,configFile=DEFAULT_CONFIG_FILE) -> None:
+        dirtyConfig = False
+        self.jsonDict = {}
+        try:
+            with open(configFile) as f:
+                self.jsonDict = json.load(f)
+        except Exception as e:
+            # we're just leaving self.jsonDict empty here
+            pass
+
+        if 'stateFile' not in self.jsonDict:
+            self.jsonDict['stateFile'] = DEFAULT_STATE_FILE
+            dirtyConfig = True
+        if 'calendarRefreshIntervalSeconds' not in self.jsonDict:
+            self.jsonDict['calendarRefreshIntervalSeconds'] = DEFAULT_CALENDAR_REFRESH_INTERVAL_SECONDS
+            dirtyConfig = True
+        if dirtyConfig:
+            with open(configFile, 'w') as f:
+                json.dump(self.jsonDict, f)
+
+    def isEventUIDExcluded(self,event):
+        eventUID = event['UID']
+        if self.jsonDict and ("excludeEventUIDs" in self.jsonDict) and (eventUID in self.jsonDict["excludeEventUIDs"]):
+            return False
+        else:
+            return True
+    
+    def getStateFile(self):
+        return self.jsonDict['stateFile']
+    
+    def useLocalCalendar(self):
+        return (('useLocal' in self.jsonDict) and (self.jsonDict['useLocal'] == True))
+    
+    def getLocalCalendar(self):
+        return self.jsonDict['localCalendar']
+    
+    def getCalendarURL(self):
+        return self.jsonDict['calendar']
+
+    def getAPIEndpoint(self):
+        return self.jsonDict['apiEndpoint']
+
 def writeState(config,state):
-    with open(config['stateFile'], 'w') as f:
+    with open(config.getStateFile(), 'w') as f:
         json.dump(state, f)
 
 def loadConfigAndState(configFile=DEFAULT_CONFIG_FILE):
 
-    dirtyConfig = False
-
+    config = Config(configFile)
     try:
-        with open(configFile) as f:
-            config = json.load(f)
-    except Exception as e:
-        config = {}
-
-    if 'stateFile' not in config:
-        config['stateFile'] = DEFAULT_STATE_FILE
-        dirtyConfig = True
-    if 'calendarRefreshIntervalSeconds' not in config:
-        config['calendarRefreshIntervalSeconds'] = DEFAULT_CALENDAR_REFRESH_INTERVAL_SECONDS
-        dirtyConfig = True
-    if dirtyConfig:
-        with open(configFile, 'w') as f:
-            json.dump(config, f)
-
-    try:
-        with open(config['stateFile']) as f:
+        with open(config.getStateFile()) as f:
             state = json.load(f)
     except: # FileNotFoundError, but also if JSON parse fails
         state = {}
@@ -122,11 +160,11 @@ def loadCalendarAndEvents(config):
     end_date = (end_stamp.year, end_stamp.month, end_stamp.day)
 
     # do caching later.
-    if 'useLocal' in config and config['useLocal'] == True:
-        with open(config['localCalendar'],'r') as f:
+    if config.useLocalCalendar():
+        with open(config.getLocalCalendar(),'r') as f:
             ical_string = f.read()
     else:
-        ical_string = urllib.request.urlopen(config["calendar"]).read()
+        ical_string = urllib.request.urlopen(config.getCalendarURL()).read()
     calendar = icalendar.Calendar.from_ical(ical_string)
     events = recurring_ical_events.of(calendar).between(start_date, end_date)
     debug("calendar had " + str(len(events)) + " events")
@@ -150,14 +188,14 @@ def main():
     if len(state.keys()) < 2:   # something's wrong, just clean it
         state = initState()
     debug(state.keys())
-    light = BusyLight(config["apiEndpoint"])
+    light = BusyLight(config.getAPIEndpoint())
 
     if (STATE_DAYDATE not in state) or state[STATE_DAYDATE] != NOW.day:
         debug("New day, initing state")
         # either this is the first run of the day or something's broken. either way, clean it out
         state = initState()
     
-    if state[STATE_DAYDATE] == NOW.day and STATE_DAYSTARTED in state and light.getStatus() == BusyLight.LIGHT_OFF:
+    if state[STATE_DAYDATE] == NOW.day and STATE_DAYSTARTED in state and light.isOff():
         # we already turned it off once today. don't restart unless manually turned on.
         debug("Manually turned off, exiting")
         quit()
@@ -181,7 +219,7 @@ def main():
         debug("within workday, let's go")
         calendar, es = loadCalendarAndEvents(config)
         #if TIME_SINCE_DAYSTART < timedelta(seconds=DEFAULT_STATUS_REFRESH_INTERVAL_SECONDS):
-        if light.getStatus() == BusyLight.LIGHT_OFF and STATE_DAYSTARTED not in state:
+        if light.isOff() and STATE_DAYSTARTED not in state:
             light.setGreen()
             state[STATE_DAYSTARTED] = 1
         else:
@@ -191,7 +229,7 @@ def main():
     nowEvents = eventsValidate(rawNowEvents,config)
 
     if len(nowEvents) == 0:
-        if light.getStatus() == BusyLight.LIGHT_RED:
+        if light.isRed():
             if len(state[STATE_STARTED]) > 0:
                 for uid in state[STATE_STARTED]:
                     state[STATE_COMPLETED].append(uid)
@@ -214,12 +252,13 @@ def main():
                 light.setRed()
             else:
                 debug("ev in started ")
-                if light.getStatus() != BusyLight.LIGHT_RED:
+                if light.isRed():
+                    debug("ev already started, light red, leaving it")
+                else:
                     debug("it's in started but light is manually set to something else -> we should clear this ev to completed")
                     state[STATE_COMPLETED].append(ev['UID'])
                     state[STATE_STARTED].remove(ev['UID'])
-                else:
-                    debug("ev already started, light red, leaving it")
+
 
     writeState(config,state)
     
