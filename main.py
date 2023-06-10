@@ -27,8 +27,8 @@ STATE_DAYDATE = "STATE_DAYDATE"
 
 NOW = datetime.now(timezone('US/Eastern')) # gonna want this a lot; will want to config-ize tz eventually
 
-print("SETTING TIME TO 48 HOURS AGO FOR TESTING")
-NOW -= timedelta(days=2)
+#print("SETTING TIME TO 48 HOURS AGO FOR TESTING")
+#NOW -= timedelta(days=2)
 
 TIME_SINCE_DAYSTART = NOW - NOW.replace(hour=8, minute=30) 
 TIME_SINCE_DAYEND = NOW - NOW.replace(hour=18, minute=0)
