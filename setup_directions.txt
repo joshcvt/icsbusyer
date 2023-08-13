@@ -1,0 +1,33 @@
+# Setup script for new busylight
+
+# Create boot SD card using RPi imager. Set your desired zeroconf hostname (here stclair), set the
+# wifi credentials it needs, and set SSH creds for pi@ -- install script for unicorn expects pi@ user.
+# Boot it
+# ssh pi@stclair.local
+sudo apt-get update
+sudo apt install git
+# modern RPi images should have Python 3.9 preinstalled
+
+cd /tmp
+curl -LSs https://raw.githubusercontent.com/estruyf/unicorn-busy-server/master/install.sh > install.sh
+sudo bash ./install.sh -V -i /home/pi/unicorn-busy-server
+
+cd /home/pi/unicorn-busy-server
+# get modification to turn the startup rainbow off after 5 seconds
+git remote set-url origin https://github.com/joshcvt/unicorn-busy-server.git
+git pull
+
+# now get icsbusyer
+cd ~; mkdir dev; cd dev/
+git clone https://github.com/joshcvt/icsbusyer.git
+cd icsbusyer
+sudo pip install -r requirements.txt
+cp sample_config.json config.json
+# update your config with your calendar.ics URL from O365
+
+# add to crontab:
+*/5	8-18	*	*	1-5	cd ~pi/dev/icsbusyer; python main.py
+
+# if you want a different favicon
+scp favicon.ico pi@stclair.local:unicorn-busy-server/frontend/build/favicon.ico
+# not frontend/public/favicon.ico, who knows what that one's for
